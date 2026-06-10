@@ -20,8 +20,7 @@ dist/
 build/
 **/build/
 
-# Local DB and secrets
-*.db
+# Local secrets
 .env
 *.env
 
