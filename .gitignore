@@ -1,0 +1,31 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Node modules and build outputs
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+
+# Local DB and secrets
+*.db
+.env
+*.env
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
