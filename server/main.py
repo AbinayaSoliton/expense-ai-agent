@@ -1,4 +1,5 @@
 import os
+import sys
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -9,7 +10,8 @@ from routes.advisor_route import router as advisor_router
 from routes.history_route import router as history_router
 from routes.parse_route import router as parse_router
 
-os.environ["SSL_CERT_FILE"] = r"C:\certs\cacert.pem"
+if sys.platform == "win32":
+    os.environ["SSL_CERT_FILE"] = r"C:\certs\cacert.pem"
 
 load_dotenv()
 
