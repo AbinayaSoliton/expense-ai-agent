@@ -11,7 +11,9 @@ from routes.history_route import router as history_router
 from routes.parse_route import router as parse_router
 
 if sys.platform == "win32":
-    os.environ["SSL_CERT_FILE"] = r"C:\certs\cacert.pem"
+    cert_path = os.environ.get("SSL_CERT_FILE", r"C:\certs\cacert.pem")
+    if os.path.exists(cert_path):
+        os.environ["SSL_CERT_FILE"] = cert_path
 
 load_dotenv()
 

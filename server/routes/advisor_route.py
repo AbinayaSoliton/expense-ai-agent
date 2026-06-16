@@ -2,7 +2,9 @@ import os
 from datetime import date
 from pathlib import Path
 
+import httpx
 import google.genai as genai
+from google.genai import types
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -16,11 +18,19 @@ router = APIRouter()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_SSL_VERIFY = os.getenv("GEMINI_SSL_VERIFY", "true").lower() != "false"
 
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is not set in the .env file.")
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+_http_options = None
+if not GEMINI_SSL_VERIFY:
+    _http_options = types.HttpOptions(
+        httpx_client=httpx.Client(verify=False),
+        httpx_async_client=httpx.AsyncClient(verify=False),
+    )
+
+client = genai.Client(api_key=GEMINI_API_KEY, http_options=_http_options)
 
 
 class AdvisorInput(BaseModel):
