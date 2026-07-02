@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 
+from constants import canonicalize_category
 from database import ExpenseHistory, SessionLocal
 
 router = APIRouter()
@@ -25,7 +26,7 @@ def _row_to_dict(expense: ExpenseHistory) -> dict:
     return {
         "id": expense.id,
         "amount": expense.amount,
-        "category": expense.category,
+        "category": canonicalize_category(expense.category),
         "merchant": expense.merchant,
         "description": expense.description,
         "emotion": expense.emotion,
@@ -43,7 +44,7 @@ async def create_expense_history(payload: ExpenseHistoryInput):
     try:
         expense = ExpenseHistory(
             amount=payload.amount,
-            category=payload.category,
+            category=canonicalize_category(payload.category),
             merchant=payload.merchant,
             description=payload.description,
             emotion=payload.emotion,

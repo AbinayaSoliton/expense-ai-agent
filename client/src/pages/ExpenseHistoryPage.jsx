@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8000`;
 const HISTORY_ENDPOINT = `${BASE_URL}/expense-history`;
+const CATEGORIES_ENDPOINT = `${BASE_URL}/categories`;
 
 const INITIAL_STATE = {
   amount: "",
@@ -13,22 +15,6 @@ const INITIAL_STATE = {
   date: "",
   payment_mode: ""
 };
-
-const CATEGORY_OPTIONS = [
-  "Costure",
-  "Food",
-  "Groceries",
-  "Transport",
-  "Utilities",
-  "Rent",
-  "Healthcare",
-  "Entertainment",
-  "Education",
-  "Shopping",
-  "Travel",
-  "Subscriptions",
-  "Other"
-];
 
 const EMOTION_OPTIONS = [
   "Planned",
@@ -96,6 +82,7 @@ function ExpenseHistoryPage() {
   const [isFetching, setIsFetching] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [historyRows, setHistoryRows] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -115,6 +102,22 @@ function ExpenseHistoryPage() {
       setIsFetching(false);
     }
   }
+
+  async function fetchCategories() {
+    try {
+      const response = await fetch(CATEGORIES_ENDPOINT);
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      const data = await response.json();
+      setCategoryOptions(Array.isArray(data.categories) ? data.categories : []);
+    } catch {
+      setErrorMessage("Unable to fetch categories from server.");
+    }
+  }
+
+  useEffect(() => {
+    fetchHistory();
+    fetchCategories();
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -177,7 +180,7 @@ function ExpenseHistoryPage() {
                 required
               >
                 <option value="">Select category</option>
-                {CATEGORY_OPTIONS.map((option) => (
+                {categoryOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>

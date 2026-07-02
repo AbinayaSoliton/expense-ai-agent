@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
-from sqlalchemy import Date, Integer, String, create_engine
+from sqlalchemy import Date, DateTime, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -32,6 +32,23 @@ class ExpenseHistory(Base):
 	weekday: Mapped[str] = mapped_column(String(20), nullable=False)
 	month: Mapped[str] = mapped_column(String(20), nullable=False)
 	payment_mode: Mapped[str] = mapped_column(String(50), nullable=False)
+
+
+class BudgetSetting(Base):
+	"""Stores monthly budget limit per expense category."""
+
+	__tablename__ = "budget_settings"
+
+	id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+	category: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+	monthly_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+	created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+	updated_at: Mapped[datetime] = mapped_column(
+		DateTime,
+		nullable=False,
+		default=datetime.utcnow,
+		onupdate=datetime.utcnow,
+	)
 
 
 engine = create_engine(

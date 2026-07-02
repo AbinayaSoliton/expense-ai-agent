@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func
 
-from database import ExpenseHistory, SessionLocal
+from database import BudgetSetting, ExpenseHistory, SessionLocal
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -103,6 +103,25 @@ def _build_db_context(db) -> str:
         or 0
     )
 
+    # Budget limits and utilization this month
+    budget_rows = db.query(BudgetSetting).all()
+    budget_map = {row.category: row.monthly_limit for row in budget_rows}
+
+    monthly_map = {cat: int(total or 0) for cat, total in monthly}
+    budget_summary = []
+    for category in sorted(set(list(monthly_map.keys()) + list(budget_map.keys()))):
+        limit = int(budget_map.get(category, 0) or 0)
+        spent = int(monthly_map.get(category, 0) or 0)
+        if limit > 0:
+            utilization = round((spent / limit) * 100) if limit else 0
+            budget_summary.append(
+                f"  {category}: spent=₹{spent:,}, limit=₹{limit:,}, utilization={utilization}%"
+            )
+        else:
+            budget_summary.append(
+                f"  {category}: spent=₹{spent:,}, limit=not set"
+            )
+
     # Format context string
     lines = [
         f"Today: {today.strftime('%A, %d %B %Y')}",
@@ -119,6 +138,12 @@ def _build_db_context(db) -> str:
 
     if top_emotion:
         lines.append(f"Most frequent emotion this month: {top_emotion[0]} ({top_emotion[1]} times)")
+
+    lines.append("\n--- Budget limits and utilization (this month) ---")
+    if budget_summary:
+        lines.extend(budget_summary)
+    else:
+        lines.append("  No budget limits configured yet.")
 
     lines.append(f"\n--- Last 10 transactions ---")
     for t in recent:

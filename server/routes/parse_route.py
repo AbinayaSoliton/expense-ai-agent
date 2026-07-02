@@ -33,10 +33,24 @@ client = genai.Client(api_key=GEMINI_API_KEY, http_options=_http_options)
 
 _DEF_RETURN_VALUE = {
     "amount": 450,
-    "category": "Lunch",
+    "category": "Food",
     "merchant": "A2B",
     "description": "Spent 450 on lunch at A2B with teammates",
+    "date": "",
+    "emotion": "Planned",
+    "necessity_score": 3,
+    "payment_mode": "UPI",
 }
+
+_TODAY = "(use today's date in YYYY-MM-DD format if not mentioned)"
+
+_VALID_CATEGORIES = [
+    "Costume", "Food", "Groceries", "Transport", "Utilities", "Rent",
+    "Healthcare", "Entertainment", "Education", "Shopping", "Travel",
+    "Subscriptions", "Dining", "Electronics", "Other",
+]
+_VALID_EMOTIONS = ["Planned", "Impulse", "Need-Based", "Stress", "Reward", "Social", "Urgent"]
+_VALID_PAYMENTS = ["UPI", "Credit Card", "Debit Card", "Cash", "Net Banking", "Wallet", "EMI"]
 
 
 class ExpenseInput(BaseModel):
@@ -44,14 +58,28 @@ class ExpenseInput(BaseModel):
 
 
 def _parse_expense(expense_text: str) -> dict | None:
-    instruction = """
-    You are an AI assistant that extracts structured JSON data
-    from expense descriptions.
+    today_str = __import__("datetime").date.today().isoformat()
+    instruction = f"""
+You are an AI assistant that extracts structured expense data from natural language.
 
-    Return ONLY valid JSON data without any headers or extra characters
-    that is readily parsable with these keys and its values:
-    amount, category, merchant, description
-    """
+Today's date is {today_str}.
+
+Return ONLY a single valid JSON object with EXACTLY these keys:
+  amount          - numeric amount spent (integer)
+  category        - one of: {', '.join(_VALID_CATEGORIES)}
+  merchant        - business/place name (string)
+  description     - short description of the expense (string)
+  date            - date of expense in YYYY-MM-DD format; use today if not mentioned
+  emotion         - one of: {', '.join(_VALID_EMOTIONS)}; infer from context
+  necessity_score - integer 1-5 (1=luxury, 5=essential); infer from context
+  payment_mode    - one of: {', '.join(_VALID_PAYMENTS)}; use UPI if not mentioned
+
+Rules:
+- Return ONLY the JSON object, no explanation, no markdown fences.
+- All keys must be present.
+- Infer emotion and necessity_score from context (e.g. "impulse buy" → Impulse, "medicines" → necessity 5).
+- If date is relative ("yesterday", "last monday") resolve it from today's date.
+"""
 
     prompt = f"{instruction}\n\nExpense:\n{expense_text}"
 

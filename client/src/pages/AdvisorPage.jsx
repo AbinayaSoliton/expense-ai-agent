@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import "../App.css";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8000`;
+
 function AdvisorPage() {
   const [question, setQuestion] = useState("");
   const [advice, setAdvice] = useState(null);
@@ -13,7 +16,7 @@ function AdvisorPage() {
     setAdvice(null);
     setError(null);
     try {
-      const response = await fetch("http://127.0.0.1:8000/advisor", {
+      const response = await fetch(`${API_BASE_URL}/advisor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
@@ -31,32 +34,34 @@ function AdvisorPage() {
   };
 
   return (
-    <div className="advisor-page">
-      <h2>Expense Advisor</h2>
-      <form onSubmit={handleSubmit} className="advisor-form">
-        <label htmlFor="advisor-question">Ask a question:</label>
-        <input
-          id="advisor-question"
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Can I spend ₹2000 on a gadget this week?"
-          required
-        />
-        <button type="submit" disabled={loading || !question.trim()}>
-          {loading ? "Thinking..." : "Ask Advisor"}
-        </button>
-      </form>
-      <div className="advisor-result">
-        {error && <div className="advisor-error">{error}</div>}
-        {advice && (
-          <div className="advisor-advice">
-            <strong>Advice:</strong>
-            <p className="advisor-advice-text">{advice}</p>
-          </div>
-        )}
-      </div>
-    </div>
+    <main className="page">
+      <section className="card advisor-card">
+        <h1>Expense Advisor</h1>
+        <form onSubmit={handleSubmit} className="advisor-form">
+          <label htmlFor="advisor-question">Ask a question:</label>
+          <input
+            id="advisor-question"
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Can I spend ₹2000 on a gadget this week?"
+            required
+          />
+          <button type="submit" disabled={loading || !question.trim()}>
+            {loading ? "Thinking..." : "Ask Advisor"}
+          </button>
+        </form>
+        <div className="advisor-result">
+          {error && <div className="advisor-error">{error}</div>}
+          {advice && (
+            <div className="advisor-advice">
+              <strong>Advice:</strong>
+              <p className="advisor-advice-text">{advice}</p>
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
   );
 }
 

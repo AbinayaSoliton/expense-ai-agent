@@ -1,135 +1,185 @@
 """
-Seed script — inserts 100 realistic expense rows into expense_history.
-Run once from the server/ directory:
+Seed script — inserts realistic expense rows and budget settings.
+
+Run from server/ directory:
     python seed_data.py
 """
-from datetime import date, timedelta
+
+from __future__ import annotations
+
 import random
+from datetime import date, timedelta
 
-from database import ExpenseHistory, SessionLocal, create_tables
+from sqlalchemy import func
 
-# ── seed data pools ──────────────────────────────────────────────────────────
+from constants import EXPENSE_CATEGORIES
+from database import BudgetSetting, ExpenseHistory, SessionLocal, create_tables
+
 
 EXPENSES = [
     # (category, merchant, description, emotion, necessity_score, amount_range, payment_mode)
-    ("Food",          "Dominos",          "Pizza night with friends",          "Social",    2, (300, 800),  "Credit Card"),
-    ("Food",          "Swiggy",           "Ordered biryani for lunch",         "Impulse",   3, (150, 450),  "UPI"),
-    ("Food",          "Zomato",           "Late night snack delivery",         "Stress",    2, (100, 350),  "UPI"),
-    ("Food",          "A2B Restaurant",   "Family lunch at A2B",               "Planned",   4, (600, 1400), "Debit Card"),
-    ("Food",          "CCD",              "Coffee and sandwich at CCD",        "Social",    2, (200, 450),  "Credit Card"),
-    ("Food",          "McDonalds",        "Quick burger meal",                 "Impulse",   2, (150, 350),  "Cash"),
-    ("Food",          "Saravana Bhavan",  "South Indian meals with family",    "Planned",   4, (400, 900),  "Cash"),
-    ("Food",          "Bakery",           "Bought cakes and pastries",         "Reward",    2, (100, 400),  "Cash"),
-
-    ("Groceries",     "Bigbasket",        "Monthly grocery order",             "Planned",   5, (1200, 3500),"UPI"),
-    ("Groceries",     "Zepto",            "Quick veggies and fruits order",    "Need-Based",5, (300, 800),  "UPI"),
-    ("Groceries",     "Dmart",            "Weekend grocery shopping",          "Planned",   5, (800, 2000), "Debit Card"),
-    ("Groceries",     "More Supermarket", "Snacks and household items",        "Planned",   4, (400, 1000), "Cash"),
-    ("Groceries",     "Blinkit",          "Emergency grocery delivery",        "Urgent",    5, (200, 600),  "UPI"),
-
-    ("Transport",     "Ola",              "Cab to office",                     "Need-Based",5, (80, 250),   "UPI"),
-    ("Transport",     "Uber",             "Late night cab from party",         "Social",    3, (150, 500),  "Credit Card"),
-    ("Transport",     "Auto",             "Auto ride to market",               "Need-Based",5, (40, 120),   "Cash"),
-    ("Transport",     "Metro",            "Monthly metro card recharge",       "Planned",   5, (200, 500),  "UPI"),
-    ("Transport",     "Rapido",           "Bike taxi to meeting",              "Planned",   4, (50, 150),   "UPI"),
-    ("Transport",     "Bus",              "City bus for daily commute",        "Need-Based",5, (20, 60),    "Cash"),
-    ("Transport",     "IndiGo",           "Flight tickets for travel",         "Planned",   4, (3000,8000), "Credit Card"),
-
-    ("Entertainment", "BookMyShow",       "Movie tickets weekend",             "Reward",    2, (300, 900),  "Credit Card"),
-    ("Entertainment", "Netflix",          "Monthly Netflix subscription",      "Planned",   2, (649, 649),  "Credit Card"),
-    ("Entertainment", "Spotify",          "Spotify premium renewal",           "Planned",   2, (119, 119),  "Credit Card"),
-    ("Entertainment", "Steam",            "Bought new game on sale",           "Impulse",   1, (500, 2500), "Credit Card"),
-    ("Entertainment", "Amazon Prime",     "Prime video annual renewal",        "Planned",   2, (1499,1499), "Credit Card"),
-    ("Entertainment", "PVR Cinemas",      "Movie with date",                   "Social",    2, (400, 1000), "Credit Card"),
-
-    ("Shopping",      "Amazon",           "Electronics accessories purchase",  "Impulse",   2, (500, 3000), "Credit Card"),
-    ("Shopping",      "Flipkart",         "Clothes bought during sale",        "Impulse",   2, (800, 3000), "Credit Card"),
-    ("Shopping",      "Myntra",           "Casual wear during end of season",  "Impulse",   2, (600, 2000), "UPI"),
-    ("Shopping",      "Meesho",           "Home decor items",                  "Impulse",   2, (200, 800),  "UPI"),
-    ("Shopping",      "Local Store",      "Stationery and office supplies",    "Need-Based",4, (100, 500),  "Cash"),
-    ("Shopping",      "Croma",            "Bought new earphones",              "Reward",    2, (1000,4000), "Credit Card"),
-
-    ("Healthcare",    "Apollo Pharmacy",  "Monthly medicines",                 "Need-Based",5, (300, 1200), "UPI"),
-    ("Healthcare",    "Practo",           "Doctor consultation fee",           "Urgent",    5, (300, 800),  "UPI"),
-    ("Healthcare",    "Gym",              "Monthly gym membership",            "Planned",   4, (500, 1500), "UPI"),
-    ("Healthcare",    "Netmeds",          "Vitamins and supplements order",    "Planned",   3, (400, 1000), "UPI"),
-    ("Healthcare",    "Lab Tests",        "Blood test and health checkup",     "Need-Based",5, (500, 2000), "Cash"),
-
-    ("Utilities",     "BSNL",             "Internet bill payment",             "Need-Based",5, (500, 1000), "UPI"),
-    ("Utilities",     "TNEB",             "Electricity bill for the month",    "Need-Based",5, (800, 2500), "Net Banking"),
-    ("Utilities",     "Gas Agency",       "LPG gas cylinder refill",          "Need-Based",5, (900, 950),  "Cash"),
-    ("Utilities",     "Water Board",      "Monthly water bill",                "Need-Based",5, (200, 500),  "UPI"),
-    ("Utilities",     "Mobile Recharge",  "Prepaid mobile recharge",           "Need-Based",5, (199, 599),  "UPI"),
-
-    ("Education",     "Udemy",            "Online course purchase",            "Planned",   4, (399, 1299), "Credit Card"),
-    ("Education",     "Coursera",         "Monthly subscription",              "Planned",   4, (1800,1800), "Credit Card"),
-    ("Education",     "Books",            "Technical books from Amazon",       "Planned",   4, (500, 2000), "UPI"),
-    ("Education",     "Skill share",      "Design course subscription",        "Planned",   3, (800, 800),  "Credit Card"),
-
-    ("Travel",        "MakeMyTrip",       "Hotel booking for weekend trip",    "Planned",   3, (2000,6000), "Credit Card"),
-    ("Travel",        "IRCTC",            "Train tickets home visit",          "Planned",   4, (400, 1500), "UPI"),
-    ("Travel",        "OYO",              "Budget hotel stay",                 "Planned",   3, (800, 2500), "UPI"),
-    ("Travel",        "Goibibo",          "Flight booked for holiday",         "Planned",   3, (4000,9000), "Credit Card"),
-
-    ("Subscriptions", "iCloud",           "iCloud storage subscription",       "Planned",   3, (75, 219),   "Credit Card"),
-    ("Subscriptions", "YouTube Premium",  "Ad-free YouTube monthly",           "Planned",   2, (129, 129),  "Credit Card"),
-    ("Subscriptions", "Notion",           "Notion personal plan",              "Planned",   3, (400, 400),  "Credit Card"),
-
-    ("Rent",          "Landlord",         "Monthly house rent",                "Need-Based",5, (8000,20000),"Net Banking"),
+    ("Food", "Dominos", "Pizza night with friends", "Social", 2, (300, 900), "Credit Card"),
+    ("Food", "Swiggy", "Ordered lunch during work", "Impulse", 3, (150, 550), "UPI"),
+    ("Food", "Zomato", "Dinner delivery after long day", "Stress", 2, (180, 700), "UPI"),
+    ("Dining", "A2B Restaurant", "Family dinner outing", "Planned", 4, (650, 1800), "Debit Card"),
+    ("Dining", "Barbeque Nation", "Weekend buffet", "Social", 3, (1200, 2800), "Credit Card"),
+    ("Groceries", "Bigbasket", "Weekly groceries", "Planned", 5, (1200, 4000), "UPI"),
+    ("Groceries", "Zepto", "Quick essentials delivery", "Need-Based", 5, (250, 900), "UPI"),
+    ("Transport", "Ola", "Cab for office commute", "Need-Based", 5, (90, 320), "UPI"),
+    ("Transport", "Metro", "Metro recharge", "Planned", 5, (200, 600), "UPI"),
+    ("Utilities", "TNEB", "Electricity bill", "Need-Based", 5, (900, 2900), "Net Banking"),
+    ("Utilities", "BSNL", "Internet bill payment", "Need-Based", 5, (600, 1200), "UPI"),
+    ("Rent", "Landlord", "Monthly rent transfer", "Need-Based", 5, (12000, 28000), "Net Banking"),
+    ("Healthcare", "Apollo Pharmacy", "Medicines and first aid", "Need-Based", 5, (300, 1700), "UPI"),
+    ("Healthcare", "Practo", "Doctor consultation", "Urgent", 5, (400, 1200), "UPI"),
+    ("Entertainment", "BookMyShow", "Movie tickets", "Reward", 2, (300, 1100), "Credit Card"),
+    ("Entertainment", "Netflix", "Monthly OTT subscription", "Planned", 2, (649, 649), "Credit Card"),
+    ("Education", "Udemy", "Online certification course", "Planned", 4, (499, 2299), "Credit Card"),
+    ("Education", "Books", "Technical books and references", "Planned", 4, (450, 2400), "UPI"),
+    ("Shopping", "Myntra", "Lifestyle shopping", "Impulse", 2, (700, 3800), "UPI"),
+    ("Shopping", "Amazon", "Home and office accessories", "Need-Based", 3, (350, 4200), "Credit Card"),
+    ("Travel", "IRCTC", "Train ticket booking", "Planned", 4, (450, 1800), "UPI"),
+    ("Travel", "MakeMyTrip", "Weekend trip booking", "Planned", 3, (2500, 9000), "Credit Card"),
+    ("Subscriptions", "YouTube Premium", "Monthly video subscription", "Planned", 2, (129, 129), "Credit Card"),
+    ("Subscriptions", "iCloud", "Cloud storage renewal", "Planned", 3, (75, 219), "Credit Card"),
+    ("Electronics", "Croma", "Bluetooth accessories", "Reward", 2, (900, 6000), "Credit Card"),
+    ("Electronics", "Reliance Digital", "Appliance purchase", "Planned", 3, (2500, 18000), "Credit Card"),
+    ("Costume", "Lifestyle", "Clothing purchase", "Impulse", 2, (1200, 5000), "Credit Card"),
+    ("Other", "Local Store", "Miscellaneous household spend", "Need-Based", 3, (120, 1200), "Cash"),
 ]
 
-# ── date helpers ──────────────────────────────────────────────────────────────
+# Approx monthly caps that look realistic for a salaried user.
+BASE_BUDGET_LIMITS = {
+    "Costume": 7000,
+    "Food": 9000,
+    "Groceries": 14000,
+    "Transport": 7000,
+    "Utilities": 9000,
+    "Rent": 25000,
+    "Healthcare": 7000,
+    "Entertainment": 5000,
+    "Education": 7000,
+    "Shopping": 9000,
+    "Travel": 10000,
+    "Subscriptions": 2000,
+    "Dining": 7000,
+    "Electronics": 12000,
+    "Other": 4000,
+}
 
-def random_date_in_past(days: int = 180) -> date:
-    offset = random.randint(0, days)
+
+def _weighted_past_date(days: int = 210) -> date:
+    """Bias generated data toward recent days while still covering history."""
+    bucket = random.random()
+    if bucket < 0.60:
+        offset = random.randint(0, 30)
+    elif bucket < 0.85:
+        offset = random.randint(31, 90)
+    else:
+        offset = random.randint(91, days)
     return date.today() - timedelta(days=offset)
 
-# ── seed function ─────────────────────────────────────────────────────────────
 
-def seed(n: int = 100) -> None:
+def _seed_expenses(db, n: int) -> int:
+    inserted = 0
+    for _ in range(n):
+        cat, merchant, desc, emotion, necessity, (lo, hi), payment = random.choice(EXPENSES)
+        amount = random.randint(lo, hi)
+        exp_date = _weighted_past_date(210)
+
+        row = ExpenseHistory(
+            amount=amount,
+            category=cat,
+            merchant=merchant,
+            description=desc,
+            emotion=emotion,
+            necessity_score=necessity,
+            date=exp_date,
+            weekday=exp_date.strftime("%A"),
+            month=exp_date.strftime("%B"),
+            payment_mode=payment,
+        )
+        db.add(row)
+        inserted += 1
+
+    # Ensure very recent activity for dashboard "live" views.
+    for day_offset in range(0, 4):
+        exp_date = date.today() - timedelta(days=day_offset)
+        cat, merchant, desc, emotion, necessity, (lo, hi), payment = random.choice(EXPENSES)
+        row = ExpenseHistory(
+            amount=random.randint(lo, hi),
+            category=cat,
+            merchant=merchant,
+            description=f"{desc} (recent)",
+            emotion=emotion,
+            necessity_score=necessity,
+            date=exp_date,
+            weekday=exp_date.strftime("%A"),
+            month=exp_date.strftime("%B"),
+            payment_mode=payment,
+        )
+        db.add(row)
+        inserted += 1
+
+    return inserted
+
+
+def _upsert_budget_settings(db) -> int:
+    changed = 0
+    # Derive spend patterns from last 90 days to keep budgets grounded in recent activity.
+    since = date.today() - timedelta(days=90)
+    recent_spend = dict(
+        db.query(ExpenseHistory.category, func.sum(ExpenseHistory.amount))
+        .filter(ExpenseHistory.date >= since)
+        .group_by(ExpenseHistory.category)
+        .all()
+    )
+
+    for category in EXPENSE_CATEGORIES:
+        base_limit = BASE_BUDGET_LIMITS.get(category, 5000)
+        recent_total = int(recent_spend.get(category, 0) or 0)
+        # Convert 90-day spend to monthly trend and keep some cushion.
+        trend_limit = int((recent_total / 3) * 1.15) if recent_total > 0 else 0
+        monthly_limit = max(base_limit, trend_limit)
+
+        row = db.query(BudgetSetting).filter(BudgetSetting.category == category).first()
+        if row is None:
+            db.add(BudgetSetting(category=category, monthly_limit=monthly_limit))
+            changed += 1
+        else:
+            row.monthly_limit = monthly_limit
+            changed += 1
+
+    return changed
+
+
+def seed(n: int = 140) -> None:
     create_tables()
     db = SessionLocal()
 
-    inserted = 0
-    # Cycle through the pool and pick randomly until we hit n rows
-    pool = EXPENSES * 3   # enough to sample from
-
     try:
-        for _ in range(n):
-            cat, merchant, desc, emotion, necessity, (lo, hi), payment = random.choice(pool)
-            amount = random.randint(lo, hi)
-            exp_date = random_date_in_past(180)
-
-            row = ExpenseHistory(
-                amount=amount,
-                category=cat,
-                merchant=merchant,
-                description=desc,
-                emotion=emotion,
-                necessity_score=necessity,
-                date=exp_date,
-                weekday=exp_date.strftime("%A"),
-                month=exp_date.strftime("%B"),
-                payment_mode=payment,
-            )
-            db.add(row)
-            inserted += 1
+        inserted_expenses = _seed_expenses(db, n)
+        updated_budgets = _upsert_budget_settings(db)
 
         db.commit()
-        print(f"✓ Inserted {inserted} rows into expense_history.")
 
-        # Print summary
-        from sqlalchemy import func
-        total = db.query(func.count(ExpenseHistory.id)).scalar()
-        print(f"  Total rows in table now: {total}")
+        total_expenses = db.query(func.count(ExpenseHistory.id)).scalar() or 0
+        total_budgets = db.query(func.count(BudgetSetting.id)).scalar() or 0
+        latest_date = db.query(func.max(ExpenseHistory.date)).scalar()
+
+        print(f"Seed complete: +{inserted_expenses} expense rows inserted.")
+        print(f"Budget settings upserted: {updated_budgets} categories.")
+        print(f"Total expense rows: {total_expenses}")
+        print(f"Total budget rows: {total_budgets}")
+        print(f"Latest transaction date in DB: {latest_date}")
 
     except Exception as exc:
         db.rollback()
-        print(f"✗ Error: {exc}")
+        print(f"Seeding failed: {exc}")
         raise
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    seed(100)
+    seed(140)
